@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useFileSystem } from '@/hooks/useFileSystem';
+import { ROOT, useFileSystem } from '@/hooks/useFileSystem';
 import { CreateType, FileSystemItem } from '@/types';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -62,7 +62,8 @@ const FileManagerScreen = () => {
       if (item.isDirectory) {
         navigateTo(item.uri);
       } else if (item.extension === 'txt') {
-        router.push({ pathname: '/viewer', params: { uri: item.uri, name: item.name } });
+        // Pass relative path to avoid URI encoding issues in expo-router params
+        router.push({ pathname: '/viewer', params: { path: item.uri.replace(ROOT, ''), name: item.name } });
       } else {
         Alert.alert('Увага', 'Відкрити можна лише .txt файли');
       }
@@ -72,7 +73,7 @@ const FileManagerScreen = () => {
 
   const handleInfo = useCallback(
     (item: FileSystemItem) => {
-      router.push({ pathname: '/info', params: { uri: item.uri } });
+      router.push({ pathname: '/info', params: { path: item.uri.replace(ROOT, '') } });
     },
     [router]
   );

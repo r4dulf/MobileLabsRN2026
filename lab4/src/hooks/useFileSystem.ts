@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { FileSystemItem, StorageInfo } from '@/types';
 
-const ROOT = FileSystem.documentDirectory!;
+export const ROOT = FileSystem.documentDirectory!;
 
 export const useFileSystem = () => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
@@ -21,12 +21,18 @@ export const useFileSystem = () => {
           const rawUri = `${path}${name}`;
           const info = await FileSystem.getInfoAsync(rawUri);
           const isDir = info.isDirectory ?? false;
+          let size: number | undefined;
+          let modificationTime: number | undefined;
+          if (info.exists) {
+            modificationTime = info.modificationTime;
+            if (!isDir) size = info.size;
+          }
           return {
             name,
             uri: isDir ? `${rawUri}/` : rawUri,
             isDirectory: isDir,
-            size: info.exists && !isDir ? (info as any).size : undefined,
-            modificationTime: info.exists ? (info as any).modificationTime : undefined,
+            size,
+            modificationTime,
             extension: !isDir && name.includes('.') ? name.split('.').pop()?.toLowerCase() : undefined,
           } as FileSystemItem;
         })

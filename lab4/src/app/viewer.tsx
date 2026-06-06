@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { ROOT } from '@/hooks/useFileSystem';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -11,7 +12,9 @@ import { Spacing } from '@/constants/theme';
 const ViewerScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
-  const { uri, name } = useLocalSearchParams<{ uri: string; name: string }>();
+  // Receive relative path (not full URI) to avoid expo-router encoding issues
+  const { path, name } = useLocalSearchParams<{ path: string; name: string }>();
+  const uri = ROOT + (Array.isArray(path) ? path[0] : path ?? '');
 
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
@@ -24,7 +27,7 @@ const ViewerScreen = () => {
   }, [name, navigation]);
 
   useEffect(() => {
-    if (!uri) return;
+    if (!uri || uri === ROOT) return;
     FileSystem.readAsStringAsync(uri)
       .then((text) => {
         setContent(text);
@@ -38,7 +41,7 @@ const ViewerScreen = () => {
   }, [uri]);
 
   const handleSave = useCallback(async () => {
-    if (!uri) return;
+    if (!uri || uri === ROOT) return;
     try {
       await FileSystem.writeAsStringAsync(uri, content);
       setSavedContent(content);

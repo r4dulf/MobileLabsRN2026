@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
+import { ROOT } from '@/hooks/useFileSystem';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDate, formatSize, getFileTypeLabel } from '@/utils/format';
@@ -33,32 +34,56 @@ const InfoRow = ({ label, value }: InfoRowProps) => {
 };
 
 const InfoScreen = () => {
+  const theme = useTheme();
   const navigation = useNavigation();
-  const { uri } = useLocalSearchParams<{ uri: string }>();
+  // Receive relative path (not full URI) to avoid expo-router encoding issues
+  const { path } = useLocalSearchParams<{ path: string }>();
+  const uri = ROOT + (Array.isArray(path) ? path[0] : path ?? '');
 
   const [details, setDetails] = useState<FileDetails | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!uri) return;
-    FileSystem.getInfoAsync(uri).then((info) => {
-      if (!info.exists) return;
-      const rawName = uri.replace(/\/$/, '').split('/').pop() ?? '';
-      const extension = !info.isDirectory && rawName.includes('.') ? rawName.split('.').pop() : undefined;
-      setDetails({
-        name: rawName,
-        type: info.isDirectory ? 'Папка' : getFileTypeLabel(extension),
-        size: info.isDirectory ? '—' : formatSize((info as any).size ?? 0),
-        modified: formatDate((info as any).modificationTime ?? 0),
-        isDirectory: info.isDirectory ?? false,
-      });
-    });
+    if (!path || uri === ROOT) return;
+
+    FileSystem.getInfoAsync(uri)
+      .then((info) => {
+        if (!info.exists) {
+          setError('Файл не знайдено');
+          return;
+        }
+        const rawName = uri.replace(/\/$/, '').split('/').pop() ?? '';
+        const extension = !info.isDirectory && rawName.includes('.') ? rawName.split('.').pop() : undefined;
+        setDetails({
+          name: rawName,
+          type: info.isDirectory ? 'Папка' : getFileTypeLabel(extension),
+          size: info.isDirectory ? '—' : formatSize(info.size),
+          modified: formatDate(info.modificationTime),
+          isDirectory: info.isDirectory,
+        });
+      })
+      .catch((e: Error) => setError(e.message));
   }, [uri]);
 
   useEffect(() => {
     navigation.setOptions({ title: details?.name ?? 'Інформація' });
   }, [details?.name, navigation]);
 
-  if (!details) return <ThemedView style={styles.container} />;
+  if (error) {
+    return (
+      <ThemedView style={[styles.container, styles.center]}>
+        <ThemedText themeColor="danger">{error}</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (!details) {
+    return (
+      <ThemedView style={[styles.container, styles.center]}>
+        <ActivityIndicator color={theme.accent} />
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -75,6 +100,10 @@ const InfoScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   card: {
     margin: Spacing.three,
